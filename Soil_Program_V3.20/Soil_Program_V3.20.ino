@@ -175,7 +175,7 @@ void loop() {
     humidity = bme2.readHumidity();
 
 
-    //Computes results from ADC
+    //Computes results from ADCs
     O2_Volt = results1 * multiplier / 1000;
     CO2_Volt = results2 * multiplier / 1000;
     Battery_Lvl = results3 * multiplier / 1000;
@@ -213,38 +213,10 @@ void loop() {
     logData(dataRec);
 
     //Echo the data to the serial connection
-    Serial.println(serialRecord());
+    Serial.println(dataRec);
     delay(1000);
   }
 }
-
-String serialRecord() {
-  String serialReadout = "";
-  serialReadout += "CO2 PPM = ";
-  serialReadout += CO2_PPM;
-  serialReadout += "| ";
-  serialReadout += "O2% = ";
-  serialReadout += O2_Percentage;
-  serialReadout += "| ";
-  serialReadout += "Methane PPM = ";
-  serialReadout += Methane_ppm;
-  serialReadout += "| ";
-  serialReadout += "Soil Humidity = ";
-  serialReadout += humidity;
-  serialReadout += "| ";
-  serialReadout += "Soil Gas Temperature = ";
-  serialReadout += temp;
-  serialReadout += "| ";
-
-  serialReadout += "Atmospheric Humidity = ";
-  serialReadout += ahumidity;
-  serialReadout += "| ";
-  serialReadout += "Atmospheric Temperature = ";
-  serialReadout += atemp;
-  serialReadout += "| ";
-  return serialReadout;
-}
-
 
 String createDataRecord() {
   //Requests data from RTC
