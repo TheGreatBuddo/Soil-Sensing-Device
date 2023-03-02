@@ -105,7 +105,7 @@ void setup() {
 
   //Set the gain for each ADC
   ads1.setGain(GAIN_ONE);  // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
-  ads2.setGain(GAIN_ONE);  // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
+  ads2.setGain(GAIN_ONE);  // 2x gain   +/-2.048V 
 
   //Sets I2C location for ads1
   if (!ads1.begin(0x48)) {
@@ -164,8 +164,8 @@ void loop() {
     // // Read results from the ADCs
     results1 = ads1.readADC_Differential_0_1();
     results2 = ads1.readADC_Differential_2_3();
-    results3 = ads2.readADC_Differential_2_3();
-    //results3 = ads1.readADC_SingleEnded(0);
+    //results3 = ads2.readADC_Differential_2_3();
+    results3 = ads2.readADC_SingleEnded(0);
     //Read results from the BME280
     atemp = bme1.readTemperature();
     apressure = bme1.readPressure() / 100.0F;
@@ -179,6 +179,9 @@ void loop() {
     O2_Volt = results1 * multiplier / 1000;
     CO2_Volt = results2 * multiplier / 1000;
     Battery_Lvl = results3 * multiplier / 1000;
+    
+    //Measures Voltage of battery
+    Battery_Lvl = ((Battery_Lvl * (1000 + (10538.0))) / 1000 );
 
     //Converts Voltage to Percent O2
     O2_Percentage = (0.0733 * abs(O2_Volt)) - 0.0813;
@@ -198,13 +201,8 @@ void loop() {
 
     //Methane Sensor Currently not implemented
     Methane_ppm = -999.0;
-
-    Serial.print("Voltage Reading = ");
-    Serial.println(Battery_Lvl);
-
-    Serial.print("Battery Voltage = ");
-    Battery_Lvl = ((Battery_Lvl * (972000 + 3000000)) / 972000);
-    Serial.println(Battery_Lvl);
+    
+  
 
     // Creates data string from function
     String dataRec = createDataRecord();
@@ -259,6 +257,8 @@ String createDataRecord() {
   data += humidity;
   data += ",";
   data += pressure;
+  data += ",";
+  data += Battery_Lvl;
   return data;
 }
 
