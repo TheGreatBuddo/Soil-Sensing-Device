@@ -51,11 +51,12 @@ Adafruit_BME280 bme2;
 int16_t results1;
 int16_t results2;
 int16_t results3;
+int16_t results4;
 float multiplier = 0.125F;
 float O2_Volt;
 float CO2_Volt;
 float Battery_Lvl;
-float Methane_ppm;
+float Methane_Volt;
 float O2_Percentage;
 float CO2_PPM;
 float accuracy_modifer;
@@ -80,6 +81,9 @@ int i;
 int solenoid;
 // Mayfly pins connected to control respective solenoids relays.
 int solenoid_pins[] = { 7, 9, 10, 4 };
+
+int index = 0;
+
 
 void setup() {
 
@@ -165,7 +169,7 @@ void loop() {
     results1 = ads1.readADC_Differential_0_1();
     results2 = ads1.readADC_Differential_2_3();
     results3 = ads2.readADC_Differential_2_3();
-    //results3 = ads1.readADC_SingleEnded(0);
+    results4 = ads2.readADC_SingleEnded(1);
     //Read results from the BME280
     atemp = bme1.readTemperature();
     apressure = bme1.readPressure() / 100.0F;
@@ -179,6 +183,7 @@ void loop() {
     O2_Volt = results1 * multiplier / 1000;
     CO2_Volt = results2 * multiplier / 1000;
     Battery_Lvl = results3 * multiplier / 1000;
+    Methane_Volt = results4 * multiplier / 1000;
 
     //Converts Voltage to Percent O2
     O2_Percentage = (0.0733 * abs(O2_Volt)) - 0.0813;
@@ -197,14 +202,14 @@ void loop() {
     }
 
     //Methane Sensor Currently not implemented
-    Methane_ppm = -999.0;
+    //Methane_ppm = -999.0;
 
-    Serial.print("Voltage Reading = ");
-    Serial.println(Battery_Lvl);
+    //Serial.print("Voltage Reading = ");
+    //Serial.println(Battery_Lvl);
 
-    Serial.print("Battery Voltage = ");
+    //Serial.print("Battery Voltage = ");
     Battery_Lvl = ((Battery_Lvl * (972000 + 3000000)) / 972000);
-    Serial.println(Battery_Lvl);
+    //Serial.println(Battery_Lvl);
 
     // Creates data string from function
     String dataRec = createDataRecord();
@@ -212,8 +217,14 @@ void loop() {
     //Save the data record to the log file
     logData(dataRec);
 
+
+    index = index+1;
     //Echo the data to the serial connection
-    Serial.println(serialRecord());
+    Serial.print(index);
+    Serial.print(": Methane (Voltage) = ");
+    Serial.println(Methane_Volt);
+    
+    //Serial.println(serialRecord());
     delay(1000);
   }
 }
@@ -227,7 +238,7 @@ String serialRecord() {
   serialReadout += O2_Percentage;
   serialReadout += "| ";
   serialReadout += "Methane PPM = ";
-  serialReadout += Methane_ppm;
+  serialReadout += Methane_Volt;
   serialReadout += "| ";
   serialReadout += "Soil Humidity = ";
   serialReadout += humidity;
@@ -274,7 +285,7 @@ String createDataRecord() {
   data += ",";
   data += CO2_PPM;
   data += ",";
-  data += Methane_ppm;
+  data += Methane_Volt;
   data += ",";
   data += atemp;
   data += ",";
