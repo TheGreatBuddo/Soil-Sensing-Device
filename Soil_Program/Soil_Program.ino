@@ -84,6 +84,13 @@ int solenoid_pins[] = { 7, 9, 10, 4 };
 
 int index = 0;
 
+// Motor 1
+int dir1PinA = 8;
+int dir2PinA = 6;
+int speedPinA = 4;  // Needs to be a PWM pin to be able to control motor speed
+
+
+
 
 void setup() {
 
@@ -94,7 +101,7 @@ void setup() {
   pinMode(7, OUTPUT);
   pinMode(9, OUTPUT);
   pinMode(10, OUTPUT);
-  pinMode(4, OUTPUT);
+  pinMode(5, OUTPUT);
 
   //HIGH implies off
   digitalWrite(pumpPin, HIGH);
@@ -102,15 +109,15 @@ void setup() {
   digitalWrite(7, HIGH);
   digitalWrite(9, HIGH);
   digitalWrite(10, HIGH);
-  digitalWrite(4, HIGH);
+  digitalWrite(5, HIGH);
 
   //Begins serial communication with 9600 Baud
   Serial.begin(9600);
 
   //Set the gain for each ADC
   ads1.setGain(GAIN_ONE);  // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
+  //ads2.setGain(GAIN_ONE);  // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
   ads2.setGain(GAIN_ONE);  // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
-
   //Sets I2C location for ads1
   if (!ads1.begin(0x48)) {
     Serial.println("Failed to initialize ADS1.");
@@ -144,6 +151,7 @@ void setup() {
 
   //Echo the data header to the serial connection
   Serial.println(DATA_HEADER);
+  analogWrite(speedPinA, 1);
 }
 
 void loop() {
@@ -152,18 +160,30 @@ void loop() {
   for (int i = 0; i < 4; i++) {
     int active_solpin = solenoid_pins[i];
     //add a list of solenoid pin numbers and go through them to activate solenoid!
-
     //Careful now! We cannot use pin eight because it triggers relay when restarting
 
-    digitalWrite(active_solpin, LOW);
-    delay(1000);
-    // Pump turns on for delay __ seconds
-    digitalWrite(pumpPin, LOW);
-    delay(5000);
+    analogWrite(speedPinA, 25);  //Sets speed variable via PWM
+    digitalWrite(dir1PinA, LOW);
+    digitalWrite(dir2PinA, HIGH);
+    Serial.println("Motor 1 Forward");  // Prints out “Motor 1 Forward” on the serial monitor
+    Serial.println("   ");              // Creates a blank line printed on the serial monitor
 
-    //Pump and solenoids turn off
-    digitalWrite(pumpPin, HIGH);
-    digitalWrite(active_solpin, HIGH);
+    // analogWrite(speedPinA, 0);  //Sets speed variable via PWM
+    // digitalWrite(dir1PinA, LOW);
+    // digitalWrite(dir2PinA, HIGH);
+    // Serial.println("Motor 1 Stop");  // Prints out “Motor 1 Forward” on the serial monitor
+    // Serial.println("   ");              // Creates a blank line printed on the serial monitor
+
+
+    // digitalWrite(active_solpin, LOW);
+    // delay(1000);
+    // // Pump turns on for delay __ seconds
+    // digitalWrite(pumpPin, LOW);
+    // delay(5000);
+
+    // //Pump and solenoids turn off
+    // digitalWrite(pumpPin, HIGH);
+    // digitalWrite(active_solpin, HIGH);
 
     // // Read results from the ADCs
     results1 = ads1.readADC_Differential_0_1();
@@ -183,8 +203,8 @@ void loop() {
     O2_Volt = results1 * multiplier / 1000;
     CO2_Volt = results2 * multiplier / 1000;
     Battery_Lvl = results3 * multiplier / 1000;
+    //Methane_Volt = results4 * multiplier / 1000;
     Methane_Volt = results4 * multiplier / 1000;
-
     //Converts Voltage to Percent O2
     O2_Percentage = (0.0733 * abs(O2_Volt)) - 0.0813;
 
@@ -218,12 +238,12 @@ void loop() {
     logData(dataRec);
 
 
-    index = index+1;
+    index = index + 1;
     //Echo the data to the serial connection
     Serial.print(index);
     Serial.print(": Methane (Voltage) = ");
-    Serial.println(Methane_Volt);
-    
+    Serial.println(Methane_Volt, 3);
+
     //Serial.println(serialRecord());
     delay(1000);
   }
