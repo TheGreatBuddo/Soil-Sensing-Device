@@ -59,6 +59,7 @@ float Battery_Lvl;
 float Methane_Volt;
 float O2_Percentage;
 float CO2_PPM;
+float Methane_PPM;
 float accuracy_modifer;
 float O2_Actual_Percentage;
 
@@ -162,11 +163,11 @@ void loop() {
     //add a list of solenoid pin numbers and go through them to activate solenoid!
     //Careful now! We cannot use pin eight because it triggers relay when restarting
 
-    analogWrite(speedPinA, 25);  //Sets speed variable via PWM
-    digitalWrite(dir1PinA, LOW);
-    digitalWrite(dir2PinA, HIGH);
-    Serial.println("Motor 1 Forward");  // Prints out “Motor 1 Forward” on the serial monitor
-    Serial.println("   ");              // Creates a blank line printed on the serial monitor
+    // analogWrite(speedPinA, 25);  //Sets speed variable via PWM
+    // digitalWrite(dir1PinA, LOW);
+    // digitalWrite(dir2PinA, HIGH);
+    // Serial.println("Motor 1 Forward");  // Prints out “Motor 1 Forward” on the serial monitor
+    // Serial.println("   ");              // Creates a blank line printed on the serial monitor
 
     // analogWrite(speedPinA, 0);  //Sets speed variable via PWM
     // digitalWrite(dir1PinA, LOW);
@@ -188,7 +189,7 @@ void loop() {
     // // Read results from the ADCs
     results1 = ads1.readADC_Differential_0_1();
     results2 = ads1.readADC_Differential_2_3();
-    results3 = ads2.readADC_Differential_2_3();
+    results3 = ads2.readADC_SingleEnded(0);
     results4 = ads2.readADC_SingleEnded(1);
     //Read results from the BME280
     atemp = bme1.readTemperature();
@@ -221,14 +222,18 @@ void loop() {
       CO2_PPM = -999;
     }
 
+
+    Methane_PPM = 8.2318 * pow( 2.71828 ,(2.7182 * Methane_Volt));
+
     //Methane Sensor Currently not implemented
     //Methane_ppm = -999.0;
 
     //Serial.print("Voltage Reading = ");
     //Serial.println(Battery_Lvl);
 
+
     //Serial.print("Battery Voltage = ");
-    Battery_Lvl = ((Battery_Lvl * (972000 + 3000000)) / 972000);
+    Battery_Lvl = ((Battery_Lvl * (9862.939 + 99725.277)) / 9862.939);
     //Serial.println(Battery_Lvl);
 
     // Creates data string from function
@@ -240,9 +245,9 @@ void loop() {
 
     index = index + 1;
     //Echo the data to the serial connection
-    Serial.print(index);
-    Serial.print(": Methane (Voltage) = ");
-    Serial.println(Methane_Volt, 3);
+
+    Serial.print(": Methane (PPM) = ");
+    Serial.println(Methane_PPM, 3);
 
     //Serial.println(serialRecord());
     delay(1000);
