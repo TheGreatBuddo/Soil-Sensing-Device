@@ -72,20 +72,17 @@ float temp;
 float pressure;
 float humidity;
 
-// Setting Valve pin
-int flushPin = 6;
-int pumpPin = 5;
-//int pumpFS = 255;
 
-// Creates integer i and solenoid
-int i;
+
 int solenoid;
+int k;
+// Setting Valve pin
+int flushPin = 11;
+
 // Mayfly pins connected to control respective solenoids relays.
-int solenoid_pins[] = { 7, 9, 10, 4 };
+int solenoid_pins[] = { 5, 7, 9, 10 };
 
-int index = 0;
-
-// Motor 1
+// Pump
 int dir1PinA = 8;
 int dir2PinA = 6;
 int speedPinA = 4;  // Needs to be a PWM pin to be able to control motor speed
@@ -96,16 +93,17 @@ int speedPinA = 4;  // Needs to be a PWM pin to be able to control motor speed
 void setup() {
 
   Wire.begin();
-  // Set Valve pin as outputs
-  pinMode(pumpPin, OUTPUT);
+  // Set OUTPUT Pins
+  pinMode(dir1PinA, OUTPUT);
+  pinMode(dir2PinA, OUTPUT);
+  pinMode(speedPinA, OUTPUT);
   pinMode(flushPin, OUTPUT);
   pinMode(7, OUTPUT);
   pinMode(9, OUTPUT);
   pinMode(10, OUTPUT);
   pinMode(5, OUTPUT);
 
-  //HIGH implies off
-  digitalWrite(pumpPin, HIGH);
+  //HIGH implies off for relay board
   digitalWrite(flushPin, HIGH);
   digitalWrite(7, HIGH);
   digitalWrite(9, HIGH);
@@ -120,6 +118,7 @@ void setup() {
   //ads2.setGain(GAIN_ONE);  // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
   ads2.setGain(GAIN_ONE);  // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
   //Sets I2C location for ads1
+
   if (!ads1.begin(0x48)) {
     Serial.println("Failed to initialize ADS1.");
     while (1)
@@ -151,40 +150,32 @@ void setup() {
   setupLogFile();
 
   //Echo the data header to the serial connection
-  Serial.println(DATA_HEADER);
+  //Serial.println(DATA_HEADER);
   analogWrite(speedPinA, 1);
 }
 
 void loop() {
 
+  //Force Reset of for loop because unknown reason k++ increased infinitely
+  k = 0;
   //___________Valve Control____________________________
-  for (int i = 0; i < 4; i++) {
-    int active_solpin = solenoid_pins[i];
+  for (k = 0; k < 5; k++) {
+    int active_solpin = solenoid_pins[k];
     //add a list of solenoid pin numbers and go through them to activate solenoid!
     //Careful now! We cannot use pin eight because it triggers relay when restarting
 
-    // analogWrite(speedPinA, 25);  //Sets speed variable via PWM
-    // digitalWrite(dir1PinA, LOW);
-    // digitalWrite(dir2PinA, HIGH);
-    // Serial.println("Motor 1 Forward");  // Prints out “Motor 1 Forward” on the serial monitor
-    // Serial.println("   ");              // Creates a blank line printed on the serial monitor
 
-    // analogWrite(speedPinA, 0);  //Sets speed variable via PWM
-    // digitalWrite(dir1PinA, LOW);
-    // digitalWrite(dir2PinA, HIGH);
-    // Serial.println("Motor 1 Stop");  // Prints out “Motor 1 Forward” on the serial monitor
-    // Serial.println("   ");              // Creates a blank line printed on the serial monitor
+    digitalWrite(active_solpin, LOW);
+    delay(1000);
 
-
-    // digitalWrite(active_solpin, LOW);
-    // delay(1000);
-    // // Pump turns on for delay __ seconds
-    // digitalWrite(pumpPin, LOW);
-    // delay(5000);
-
-    // //Pump and solenoids turn off
-    // digitalWrite(pumpPin, HIGH);
-    // digitalWrite(active_solpin, HIGH);
+    //Pump ON
+    analogWrite(speedPinA, 120);  //Sets speed variable via PWM
+    digitalWrite(dir1PinA, LOW);
+    digitalWrite(dir2PinA, HIGH);
+    delay(5000);
+    //Pump OFF
+    analogWrite(speedPinA, 0);  //Sets speed variable via PWM
+    digitalWrite(active_solpin, HIGH);
 
     // // Read results from the ADCs
     results1 = ads1.readADC_Differential_0_1();
@@ -222,15 +213,13 @@ void loop() {
       CO2_PPM = -999;
     }
 
+    //Converts Volts CH4 to PPM
+    Methane_PPM = 8.2318 * pow(2.71828, (2.7182 * Methane_Volt));
 
-    Methane_PPM = 8.2318 * pow( 2.71828 ,(2.7182 * Methane_Volt));
-
-    //Methane Sensor Currently not implemented
-    //Methane_ppm = -999.0;
-
-    //Serial.print("Voltage Reading = ");
-    //Serial.println(Battery_Lvl);
-
+    //Error Reading if negative value
+    if (Methane_PPM <= 0) {
+      Methane_PPM = -999;
+    }
 
     //Serial.print("Battery Voltage = ");
     Battery_Lvl = ((Battery_Lvl * (9862.939 + 99725.277)) / 9862.939);
@@ -239,48 +228,38 @@ void loop() {
     // Creates data string from function
     String dataRec = createDataRecord();
 
+    //Creates Barrier for serial monitor
+    Serial.println("-----------------------------------------------------------------------------");
+
+    //Informs Solenoid used
+    Serial.print("Solenoid ");
+    Serial.print(k + 1);
+    Serial.print(", ");
+
+    Serial.print("Methane = ");
+    Serial.print(Methane_PPM);
+    Serial.print("PPM, ");
+
+    Serial.print("CO2 = ");
+    Serial.print(CO2_PPM);
+    Serial.print("PPM, ");
+
+    Serial.print("O2% = ");
+    Serial.print(O2_Percentage);
+    Serial.print("%| ");
+
+
+    Serial.print("\n");
+    Serial.println("-----------------------------------------------------------------------------");
+    //End Barrier for serial monitor
+
+
     //Save the data record to the log file
     logData(dataRec);
 
-
-    index = index + 1;
-    //Echo the data to the serial connection
-
-    Serial.print(": Methane (PPM) = ");
-    Serial.println(Methane_PPM, 3);
-
-    //Serial.println(serialRecord());
     delay(1000);
   }
 }
-
-String serialRecord() {
-  String serialReadout = "";
-  serialReadout += "CO2 PPM = ";
-  serialReadout += CO2_PPM;
-  serialReadout += "| ";
-  serialReadout += "O2% = ";
-  serialReadout += O2_Percentage;
-  serialReadout += "| ";
-  serialReadout += "Methane PPM = ";
-  serialReadout += Methane_Volt;
-  serialReadout += "| ";
-  serialReadout += "Soil Humidity = ";
-  serialReadout += humidity;
-  serialReadout += "| ";
-  serialReadout += "Soil Gas Temperature = ";
-  serialReadout += temp;
-  serialReadout += "| ";
-
-  serialReadout += "Atmospheric Humidity = ";
-  serialReadout += ahumidity;
-  serialReadout += "| ";
-  serialReadout += "Atmospheric Temperature = ";
-  serialReadout += atemp;
-  serialReadout += "| ";
-  return serialReadout;
-}
-
 
 String createDataRecord() {
   //Requests data from RTC
