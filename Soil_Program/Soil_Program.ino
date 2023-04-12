@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <Arduino.h>
+#include <math.h>
 
 //Includes the Library for the Analog Digital Converters
 #include <Adafruit_ADS1X15.h>
@@ -87,6 +88,18 @@ int dir1PinA = 8;
 int dir2PinA = 6;
 int speedPinA = 4;  // Needs to be a PWM pin to be able to control motor speed
 
+//Methane Calculations
+float Rs;
+float Ro = 23250;  // ohms
+float Rl = 3170;
+float Vdd = 5;
+float Vload;
+float ratio_corr;
+float CH4_raw;
+float CH4_log;
+float CH4_ratio;
+
+
 
 
 
@@ -169,10 +182,10 @@ void loop() {
     delay(1000);
 
     //Pump ON
-    analogWrite(speedPinA, 120);  //Sets speed variable via PWM
+    analogWrite(speedPinA, 50);  //Sets speed variable via PWM
     digitalWrite(dir1PinA, LOW);
     digitalWrite(dir2PinA, HIGH);
-    delay(5000);
+    delay(5000);z
     //Pump OFF
     analogWrite(speedPinA, 0);  //Sets speed variable via PWM
     digitalWrite(active_solpin, HIGH);
@@ -198,7 +211,7 @@ void loop() {
     //Methane_Volt = results4 * multiplier / 1000;
     Methane_Volt = results4 * multiplier / 1000;
     //Converts Voltage to Percent O2
-    O2_Percentage = (0.0733 * abs(O2_Volt)) - 0.0813;
+    O2_Percentage = (((0.0733 * abs(O2_Volt)) - 0.0813) * 100);
 
     //Error Reading if negative value
     if (O2_Percentage <= 0) {
@@ -214,12 +227,23 @@ void loop() {
     }
 
     //Converts Volts CH4 to PPM
-    Methane_PPM = 8.2318 * pow(2.71828, (2.7182 * Methane_Volt));
+    // Methane_PPM = 8.2318 * pow(2.71828, (2.7182 * Methane_Volt));
 
     //Error Reading if negative value
     if (Methane_PPM <= 0) {
       Methane_PPM = -999;
     }
+
+    //Methane Calculations
+    //varibles at disposal
+    // Rs; Ro = 3163 ohms; Rl = 3170; Vdd = 5; Vload;
+    Vload = Methane_Volt;
+    Rs = Rl * ((Vdd / Vload) - 1);
+    // ratio_corr = (Rs / Ro) * (0.024 + 0.0072 * humidity + 0.246 * temp);
+    // CH4_raw = 1.828 + 0.0288 * ratio_corr;
+    CH4_ratio = Rs/Ro;
+    Serial.println(exp(1));
+    CH4_log = 465265*exp(-12.04*CH4_ratio);
 
     //Serial.print("Battery Voltage = ");
     Battery_Lvl = ((Battery_Lvl * (9862.939 + 99725.277)) / 9862.939);
@@ -231,23 +255,53 @@ void loop() {
     //Creates Barrier for serial monitor
     Serial.println("-----------------------------------------------------------------------------");
 
-    //Informs Solenoid used
-    Serial.print("Solenoid ");
-    Serial.print(k + 1);
-    Serial.print(", ");
+    // //Informs Solenoid used
+    // Serial.print("Solenoid ");
+    // Serial.print(k + 1);
+    // Serial.print(", ");
 
-    Serial.print("Methane = ");
-    Serial.print(Methane_PPM);
-    Serial.print("PPM, ");
+    // Serial.print("Methane = ");
+    // Serial.print(Methane_PPM);
+    // Serial.print("PPM, ");
 
-    Serial.print("CO2 = ");
-    Serial.print(CO2_PPM);
-    Serial.print("PPM, ");
+    // Serial.print("CO2 = ");
+    // Serial.print(CO2_PPM);
+    // Serial.print("PPM, ");
 
-    Serial.print("O2% = ");
-    Serial.print(O2_Percentage);
+    // Serial.print("O2% = ");
+    // Serial.print(O2_Percentage);
+    // Serial.print("%| ");
+
+    Serial.print("Vload = ");
+    Serial.print(Vload);
+    Serial.print("V| ");
+
+    Serial.print("Rs = ");
+    Serial.print(Rs);
+    Serial.print("ohms| ");
+
+    Serial.print("CH4 PPM = ");
+    Serial.print(CH4_log);
+    Serial.print("PPM| ");
+
+    Serial.print("Temperature = ");
+    Serial.print(temp);
+    Serial.print("C| ");
+
+    Serial.print("RH = ");
+    Serial.print(humidity);
     Serial.print("%| ");
 
+
+    Serial.print("\n");
+
+    Serial.print("Ambient Temperature = ");
+    Serial.print(atemp);
+    Serial.print("C| ");
+
+    Serial.print(" Ambient RH = ");
+    Serial.print(ahumidity);
+    Serial.print("%| ");
 
     Serial.print("\n");
     Serial.println("-----------------------------------------------------------------------------");
