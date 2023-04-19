@@ -104,7 +104,7 @@ float CH4_raw;
 float CH4_log;
 float CH4_ratio;
 
-
+String heater = "off";
 
 
 
@@ -177,17 +177,14 @@ void setup() {
 void loop() {
 
 
-  //Heating Element ON
-  analogWrite(speedPinB, 50);  //Sets speed variable via PWM
-  digitalWrite(dir1PinB, LOW);
-  digitalWrite(dir2PinB, HIGH);
+
 
   //Force Reset of for loop because unknown reason k++ increased infinitely
   k = 0;
   //___________Valve Control____________________________
   for (k = 0; k < 4; k++) {
     //Only use solenoid 1
-     k = 0;
+    k = 0;
     int active_solpin = solenoid_pins[k];
     //add a list of solenoid pin numbers and go through them to activate solenoid!
     //Careful now! We cannot use pin eight because it triggers relay when restarting
@@ -248,6 +245,20 @@ void loop() {
       Methane_PPM = -999;
     }
 
+    if (temp < atemp + 2) {
+      //Heating Element ON
+      analogWrite(speedPinB, 50);  //Sets speed variable via PWM
+      digitalWrite(dir1PinB, LOW);
+      digitalWrite(dir2PinB, HIGH);
+      heater = "ON";
+    } else {
+      //Heating Element OFF
+      analogWrite(speedPinB, 0);  //Sets speed variable via PWM
+      digitalWrite(dir1PinB, LOW);
+      digitalWrite(dir2PinB, HIGH);
+      heater = "OFF";
+    }
+
     //Methane Calculations
     //varibles at disposal
     // Rs; Ro = 3163 ohms; Rl = 3170; Vdd = 5; Vload;
@@ -271,6 +282,11 @@ void loop() {
     //Informs Solenoid used
     Serial.print("Solenoid ");
     Serial.print(k + 1);
+    Serial.print("| ");
+
+    //Informs if heater element is active
+    Serial.print("Heater ");
+    Serial.print(heater);
     Serial.print("| ");
 
     // Serial.print("Methane = ");
