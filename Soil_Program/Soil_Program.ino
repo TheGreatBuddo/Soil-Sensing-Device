@@ -81,12 +81,17 @@ int k;
 int flushPin = 11;
 
 // Mayfly pins connected to control respective solenoids relays.
-int solenoid_pins[] = { 5, 7, 9, 10 };
+int solenoid_pins[] = { 23, 7, 9, 10 };
 
 // Pump
 int dir1PinA = 8;
 int dir2PinA = 6;
 int speedPinA = 4;  // Needs to be a PWM pin to be able to control motor speed
+
+// Heating Element
+int dir1PinB = 18;
+int dir2PinB = 20;
+int speedPinB = 5;  // Needs to be a PWM pin to be able to control motor speed
 
 //Methane Calculations
 float Rs;
@@ -109,19 +114,21 @@ void setup() {
   // Set OUTPUT Pins
   pinMode(dir1PinA, OUTPUT);
   pinMode(dir2PinA, OUTPUT);
+  pinMode(dir1PinB, OUTPUT);
+  pinMode(dir2PinB, OUTPUT);
   pinMode(speedPinA, OUTPUT);
   pinMode(flushPin, OUTPUT);
-  pinMode(7, OUTPUT);
-  pinMode(9, OUTPUT);
-  pinMode(10, OUTPUT);
-  pinMode(5, OUTPUT);
+  pinMode(solenoid_pins[0], OUTPUT);
+  pinMode(solenoid_pins[1], OUTPUT);
+  pinMode(solenoid_pins[2], OUTPUT);
+  pinMode(solenoid_pins[3], OUTPUT);
 
   //HIGH implies off for relay board
   digitalWrite(flushPin, HIGH);
-  digitalWrite(7, HIGH);
-  digitalWrite(9, HIGH);
-  digitalWrite(10, HIGH);
-  digitalWrite(5, HIGH);
+  digitalWrite(solenoid_pins[0], HIGH);
+  digitalWrite(solenoid_pins[1], HIGH);
+  digitalWrite(solenoid_pins[2], HIGH);
+  digitalWrite(solenoid_pins[3], HIGH);
 
   //Begins serial communication with 9600 Baud
   Serial.begin(9600);
@@ -169,23 +176,30 @@ void setup() {
 
 void loop() {
 
+
+  //Heating Element ON
+  analogWrite(speedPinB, 50);  //Sets speed variable via PWM
+  digitalWrite(dir1PinB, LOW);
+  digitalWrite(dir2PinB, HIGH);
+
   //Force Reset of for loop because unknown reason k++ increased infinitely
   k = 0;
   //___________Valve Control____________________________
-  for (k = 0; k < 5; k++) {
+  for (k = 0; k < 4; k++) {
+    //Only use solenoid 1
+     k = 0;
     int active_solpin = solenoid_pins[k];
     //add a list of solenoid pin numbers and go through them to activate solenoid!
     //Careful now! We cannot use pin eight because it triggers relay when restarting
-
 
     digitalWrite(active_solpin, LOW);
     delay(1000);
 
     //Pump ON
-    analogWrite(speedPinA, 50);  //Sets speed variable via PWM
+    analogWrite(speedPinA, 255);  //Sets speed variable via PWM
     digitalWrite(dir1PinA, LOW);
     digitalWrite(dir2PinA, HIGH);
-    delay(5000);z
+    delay(5000);
     //Pump OFF
     analogWrite(speedPinA, 0);  //Sets speed variable via PWM
     digitalWrite(active_solpin, HIGH);
@@ -241,9 +255,8 @@ void loop() {
     Rs = Rl * ((Vdd / Vload) - 1);
     // ratio_corr = (Rs / Ro) * (0.024 + 0.0072 * humidity + 0.246 * temp);
     // CH4_raw = 1.828 + 0.0288 * ratio_corr;
-    CH4_ratio = Rs/Ro;
-    Serial.println(exp(1));
-    CH4_log = 465265*exp(-12.04*CH4_ratio);
+    CH4_ratio = Rs / Ro;
+    CH4_log = 465265 * exp(-12.04 * CH4_ratio);
 
     //Serial.print("Battery Voltage = ");
     Battery_Lvl = ((Battery_Lvl * (9862.939 + 99725.277)) / 9862.939);
@@ -255,30 +268,34 @@ void loop() {
     //Creates Barrier for serial monitor
     Serial.println("-----------------------------------------------------------------------------");
 
-    // //Informs Solenoid used
-    // Serial.print("Solenoid ");
-    // Serial.print(k + 1);
-    // Serial.print(", ");
+    //Informs Solenoid used
+    Serial.print("Solenoid ");
+    Serial.print(k + 1);
+    Serial.print("| ");
 
     // Serial.print("Methane = ");
     // Serial.print(Methane_PPM);
     // Serial.print("PPM, ");
 
-    // Serial.print("CO2 = ");
-    // Serial.print(CO2_PPM);
-    // Serial.print("PPM, ");
+    Serial.print("Water = ");
+    Serial.print(analogRead(A0));
+    Serial.print(" Moisture| ");
 
-    // Serial.print("O2% = ");
-    // Serial.print(O2_Percentage);
-    // Serial.print("%| ");
+    Serial.print("CO2 = ");
+    Serial.print(CO2_PPM);
+    Serial.print("PPM, ");
 
-    Serial.print("Vload = ");
-    Serial.print(Vload);
-    Serial.print("V| ");
+    Serial.print("O2% = ");
+    Serial.print(O2_Percentage);
+    Serial.print("%| ");
 
-    Serial.print("Rs = ");
-    Serial.print(Rs);
-    Serial.print("ohms| ");
+    // Serial.print("Vload = ");
+    // Serial.print(Vload);
+    // Serial.print("V| ");
+
+    // Serial.print("Rs = ");
+    // Serial.print(Rs);
+    // Serial.print("ohms| ");
 
     Serial.print("CH4 PPM = ");
     Serial.print(CH4_log);
