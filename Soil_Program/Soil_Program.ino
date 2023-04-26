@@ -22,7 +22,7 @@
 
 //Adds Definitions to the SD pin and File info for SD card
 #define SD_SS_PIN 12
-#define FILE_NAME "April26.txt"
+#define FILE_NAME "Test1.txt"
 #define LOGGERNAME "Mayfly Soil Vapor Sensor"
 #define DATA_HEADER "Date,Time,Solenoid Number,Heater State,Water Level Measurement,O2(%),O2 Volt,CO2(PPM),CO2 Volt,CH4(PPM),CH4 Volt,Ambient Temperature (C),Ambient Humidity (%), Ambient Pressure (hPa), Temperature (C), Humidity (%), Pressure (hPa)"
 
@@ -194,11 +194,14 @@ void loop() {
     analogWrite(speedPinA, 255);  //Sets speed variable via PWM
     digitalWrite(dir1PinA, LOW);
     digitalWrite(dir2PinA, HIGH);
-    delay(5000);
+    //enough time to fill the entire chamber at current pump speed
+    delay(6000);
     //Pump OFF
     analogWrite(speedPinA, 0);  //Sets speed variable via PWM
     digitalWrite(active_solpin, HIGH);
 
+    //let gases diffuse in chamber
+    delay(10000);
     // // Read results from the ADCs
     results1 = ads1.readADC_Differential_0_1();
     results2 = ads1.readADC_Differential_2_3();
@@ -220,7 +223,7 @@ void loop() {
     //Methane_Volt = results4 * multiplier / 1000;
     Methane_Volt = results4 * multiplier / 1000;
     //Converts Voltage to Percent O2
-    O2_Percentage = (((0.0733 * abs(O2_Volt)) - 0.0813) * 100);
+    O2_Percentage = (((0.0763 * abs(O2_Volt)) - 0.0841) * 100);
 
     //Error Reading if negative value
     if (O2_Percentage <= 0) {
@@ -228,8 +231,11 @@ void loop() {
     }
 
     //Converts Volts CO2 to PPM
-    CO2_PPM = (1671.4 * abs(CO2_Volt) - 1287.3);
-
+    //CO2_PPM = (1671.4 * abs(CO2_Volt) - 1287.3);
+    //CO2_PPM = (1671.4 * abs(CO2_Volt) - 1287.3);
+    //CO2_PPM = (-178.56 * pow(abs(CO2_Volt),2)) + (2608.7 * abs(CO2_Volt)) - 2297.3;
+    // CO2_PPM = 3746.1 * log(abs(CO2_Volt)) - 52.951;
+    CO2_PPM = (687.33 * pow(abs(CO2_Volt),3)) - (4334.2 * pow(abs(CO2_Volt),2)) + (9383.9 * abs(CO2_Volt)) - 5605.8;
     //Error Reading if negative value
     if (CO2_PPM <= 0) {
       CO2_PPM = -999;
@@ -270,7 +276,7 @@ void loop() {
     //Serial.print("Battery Voltage = ");
     Battery_Lvl = ((Battery_Lvl * (9862.939 + 99725.277)) / 9862.939);
     //Serial.println(Battery_Lvl);
-
+    waterLevel = analogRead(A0);
     // Creates data string from function
     String dataRec = createDataRecord();
 
@@ -293,33 +299,28 @@ void loop() {
     // Serial.print("PPM, ");
 
     Serial.print("Water = ");
-    waterLevel = analogRead(A0);
     Serial.print(waterLevel);
     Serial.print(" Moisture| ");
 
     Serial.print("CO2 = ");
-    Serial.print(CO2_Volt);
-    Serial.print("Volt, ");
+    Serial.print(CO2_Volt,3);
+    Serial.print("V, ");
 
     Serial.print("CO2 = ");
     Serial.print(CO2_PPM);
     Serial.print("PPM, ");
 
-    Serial.print("O2% = ");
+    Serial.print("O2 Volt= ");
     Serial.print(O2_Volt);
-    Serial.print("Volt| ");
+    Serial.print("V| ");
 
     Serial.print("O2% = ");
     Serial.print(O2_Percentage);
     Serial.print("%| ");
 
-    // Serial.print("Vload = ");
-    // Serial.print(Vload);
-    // Serial.print("V| ");
-
-    // Serial.print("Rs = ");
-    // Serial.print(Rs);
-    // Serial.print("ohms| ");
+    Serial.print("CH4 Volt = ");
+    Serial.print(Methane_Volt);
+    Serial.print("V| ");
 
     Serial.print("CH4 PPM = ");
     Serial.print(CH4_log);
