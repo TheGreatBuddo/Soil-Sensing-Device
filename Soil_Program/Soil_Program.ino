@@ -22,12 +22,9 @@
 
 //Adds Definitions to the SD pin and File info for SD card
 #define SD_SS_PIN 12
-#define FILE_NAME "Datafile.txt"
+#define FILE_NAME "April26.txt"
 #define LOGGERNAME "Mayfly Soil Vapor Sensor"
-#define DATA_HEADER "Date,Time,Depth Number,O2(%),CO2(PPM),CH4(V),Ambient Temperature (C),Ambient Humidity (%), Ambient Pressure (hPa), Temperature (C), Humidity (%), Pressure (hPa)"
-
-//define MQ4 Methane Sensor I2C address
-#define Addr 0x50
+#define DATA_HEADER "Date,Time,Solenoid Number,Heater State,Water Level Measurement,O2(%),O2 Volt,CO2(PPM),CO2 Volt,CH4(PPM),CH4 Volt,Ambient Temperature (C),Ambient Humidity (%), Ambient Pressure (hPa), Temperature (C), Humidity (%), Pressure (hPa)"
 
 //Creates Clock Variable for RTC
 DS3231 Clock;
@@ -103,6 +100,7 @@ float ratio_corr;
 float CH4_raw;
 float CH4_log;
 float CH4_ratio;
+float waterLevel;
 
 String heater = "off";
 
@@ -184,7 +182,7 @@ void loop() {
   //___________Valve Control____________________________
   for (k = 0; k < 4; k++) {
     //Only use solenoid 1
-    k = 0;
+    // k = 0;
     int active_solpin = solenoid_pins[k];
     //add a list of solenoid pin numbers and go through them to activate solenoid!
     //Careful now! We cannot use pin eight because it triggers relay when restarting
@@ -280,8 +278,9 @@ void loop() {
     Serial.println("-----------------------------------------------------------------------------");
 
     //Informs Solenoid used
-    Serial.print("Solenoid ");
-    Serial.print(k + 1);
+    Serial.print("Solenoid");
+    solenoid = (k + 1);
+    Serial.print(solenoid);
     Serial.print("| ");
 
     //Informs if heater element is active
@@ -294,12 +293,21 @@ void loop() {
     // Serial.print("PPM, ");
 
     Serial.print("Water = ");
-    Serial.print(analogRead(A0));
+    waterLevel = analogRead(A0);
+    Serial.print(waterLevel);
     Serial.print(" Moisture| ");
+
+    Serial.print("CO2 = ");
+    Serial.print(CO2_Volt);
+    Serial.print("Volt, ");
 
     Serial.print("CO2 = ");
     Serial.print(CO2_PPM);
     Serial.print("PPM, ");
+
+    Serial.print("O2% = ");
+    Serial.print(O2_Volt);
+    Serial.print("Volt| ");
 
     Serial.print("O2% = ");
     Serial.print(O2_Percentage);
@@ -372,9 +380,19 @@ String createDataRecord() {
   data += ",";
   data += solenoid;
   data += ",";
+  data += heater;
+  data += ",";
+  data += waterLevel;
+  data += ",";
   data += O2_Percentage;
   data += ",";
+  data += O2_Volt;
+  data += ",";
   data += CO2_PPM;
+  data += ",";
+  data += CO2_Volt;
+  data += ",";
+  data += CH4_log;
   data += ",";
   data += Methane_Volt;
   data += ",";
