@@ -109,7 +109,8 @@ String heater = "off";
 void setup() {
 
   Wire.begin();
-  // Set OUTPUT Pins
+
+  // Set OUTPUT Pins on Mayfly Microcontroller
   pinMode(dir1PinA, OUTPUT);
   pinMode(dir2PinA, OUTPUT);
   pinMode(dir1PinB, OUTPUT);
@@ -131,12 +132,12 @@ void setup() {
   //Begins serial communication with 9600 Baud
   Serial.begin(9600);
 
-  //Set the gain for each ADC
+  //Set the gain for each ADC located on AA0,AA1, AA2, and AA3 on Mayfly Microcontroller
   ads1.setGain(GAIN_ONE);  // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
-  //ads2.setGain(GAIN_ONE);  // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
+  //Set the gain for ADS1115 ADC
   ads2.setGain(GAIN_ONE);  // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
-  //Sets I2C location for ads1
 
+  //Check if ADC on mayfly is operational at 0x48 address
   if (!ads1.begin(0x48)) {
     Serial.println("Failed to initialize ADS1.");
     while (1)
@@ -144,7 +145,7 @@ void setup() {
   }
 
 
-  //Sets I2C location for ads2 external ADC
+  //Check if ADS1115 ADC is operational at 0x49 address
   if (!ads2.begin(0x49)) {
     Serial.println("Failed to initialize ADS2.");
     while (1)
@@ -157,7 +158,7 @@ void setup() {
     while (1)
       ;
   }
-  //Sets BME1 I2C Location to 0x77
+  //Sets BME2 I2C Location to 0x77
   if (!bme2.begin(0x77)) {
     Serial.println("Could not find a valid BME280 sensor, check wiring!");
     while (1)
@@ -167,47 +168,46 @@ void setup() {
   //Initialise log file
   setupLogFile();
 
-  //Echo the data header to the serial connection
-  //Serial.println(DATA_HEADER);
-  analogWrite(speedPinA, 1);
 }
 
 void loop() {
 
-
-
-
   //Force Reset of for loop because unknown reason k++ increased infinitely
   k = 0;
-  //___________Valve Control____________________________
-  for (k = 0; k < 4; k++) {
-    //Only use solenoid 1
-    // k = 0;
-    int active_solpin = solenoid_pins[k];
-    //add a list of solenoid pin numbers and go through them to activate solenoid!
-    //Careful now! We cannot use pin eight because it triggers relay when restarting
+  //___________Valve Control____________________________//
+  
+//for loop opens a specified solenoid, extracts gas, takes measurements, and loops to next solenoid
 
+  for (k = 0; k < 4; k++) {
+    int active_solpin = solenoid_pins[k];
+
+    //add a list of solenoid pin numbers and go through them to activate solenoid!
+
+    //Careful now! If pin eight is used for a solenoid it triggers the relay sporadically if mayfly is restarted
+
+    //Turn specified solenoid on for delay(seconds)
     digitalWrite(active_solpin, LOW);
     delay(1000);
 
-    //Pump ON
+    //Turn the Pump ON for delay(seconds) 6000 is enough to fill the entire chamber at max pump speed
     analogWrite(speedPinA, 255);  //Sets speed variable via PWM
     digitalWrite(dir1PinA, LOW);
     digitalWrite(dir2PinA, HIGH);
-    //enough time to fill the entire chamber at current pump speed
     delay(6000);
-    //Pump OFF
+
+    //Turn the Pump OFF to let gas diffuse in chamber for delay(seconds)
     analogWrite(speedPinA, 0);  //Sets speed variable via PWM
     digitalWrite(active_solpin, HIGH);
-
-    //let gases diffuse in chamber
     delay(10000);
-    // // Read results from the ADCs
+
+    // Read Oxygen and CO2 results from the Mayfly ADCs
     results1 = ads1.readADC_Differential_0_1();
     results2 = ads1.readADC_Differential_2_3();
+    // Read battery level and methane voltage from ADS1115
     results3 = ads2.readADC_SingleEnded(0);
     results4 = ads2.readADC_SingleEnded(1);
-    //Read results from the BME280
+
+    //Read results from both BME280s. a specifies ambient
     atemp = bme1.readTemperature();
     apressure = bme1.readPressure() / 100.0F;
     ahumidity = bme1.readHumidity();
@@ -216,13 +216,15 @@ void loop() {
     humidity = bme2.readHumidity();
 
 
-    //Computes results from ADC
+    //Compute voltage from ADC results
     O2_Volt = results1 * multiplier / 1000;
     CO2_Volt = results2 * multiplier / 1000;
     Battery_Lvl = results3 * multiplier / 1000;
-    //Methane_Volt = results4 * multiplier / 1000;
     Methane_Volt = results4 * multiplier / 1000;
-    //Converts Voltage to Percent O2
+
+    //_______________Algorithm Computation_______________________________________
+
+    //Converts Voltage to Percent O2%
     O2_Percentage = (((0.0763 * abs(O2_Volt)) - 0.0841) * 100);
 
     //Error Reading if negative value
@@ -236,51 +238,49 @@ void loop() {
     //CO2_PPM = (-178.56 * pow(abs(CO2_Volt),2)) + (2608.7 * abs(CO2_Volt)) - 2297.3;
     // CO2_PPM = 3746.1 * log(abs(CO2_Volt)) - 52.951;
     CO2_PPM = (687.33 * pow(abs(CO2_Volt),3)) - (4334.2 * pow(abs(CO2_Volt),2)) + (9383.9 * abs(CO2_Volt)) - 5605.8;
+
     //Error Reading if negative value
     if (CO2_PPM <= 0) {
       CO2_PPM = -999;
     }
 
     //Converts Volts CH4 to PPM
-    // Methane_PPM = 8.2318 * pow(2.71828, (2.7182 * Methane_Volt));
+    Methane_PPM = 8.2318 * pow(2.71828, (2.7182 * Methane_Volt));
 
     //Error Reading if negative value
     if (Methane_PPM <= 0) {
       Methane_PPM = -999;
     }
 
+
+    //Heating element connected to L298N H-Bridge. Heat the sensor chamber if temperature is nearing ambient
     if (temp < atemp + 2) {
       //Heating Element ON
-      analogWrite(speedPinB, 50);  //Sets speed variable via PWM
+      analogWrite(speedPinB, 50);  //Sets voltage supplied to heating element from 0-255
       digitalWrite(dir1PinB, LOW);
       digitalWrite(dir2PinB, HIGH);
       heater = "ON";
     } else {
       //Heating Element OFF
-      analogWrite(speedPinB, 0);  //Sets speed variable via PWM
+      analogWrite(speedPinB, 0);  //Sets voltage supplied to zero
       digitalWrite(dir1PinB, LOW);
       digitalWrite(dir2PinB, HIGH);
       heater = "OFF";
     }
 
-    //Methane Calculations
-    //varibles at disposal
-    // Rs; Ro = 3163 ohms; Rl = 3170; Vdd = 5; Vload;
-    Vload = Methane_Volt;
-    Rs = Rl * ((Vdd / Vload) - 1);
-    // ratio_corr = (Rs / Ro) * (0.024 + 0.0072 * humidity + 0.246 * temp);
-    // CH4_raw = 1.828 + 0.0288 * ratio_corr;
-    CH4_ratio = Rs / Ro;
-    CH4_log = 465265 * exp(-12.04 * CH4_ratio);
+    //Compute the battery voltage based on ADS1115 readings of voltage divider
+    float R_load = 9862.939;
+    float R_1 = 99725.277;
+    Battery_Lvl = ((Battery_Lvl * (R_load+ R_1)) / R_load);
+    //Currently no conditions are set to power off the device if battery voltage is to low
 
-    //Serial.print("Battery Voltage = ");
-    Battery_Lvl = ((Battery_Lvl * (9862.939 + 99725.277)) / 9862.939);
-    //Serial.println(Battery_Lvl);
+    //Measure voltage from Capacitive Soil Moisture Sensor
     waterLevel = analogRead(A0);
+
     // Creates data string from function
     String dataRec = createDataRecord();
 
-    //Creates Barrier for serial monitor
+    //Display Measurements to Serial Monitor
     Serial.println("-----------------------------------------------------------------------------");
 
     //Informs Solenoid used
